@@ -29,7 +29,13 @@ WHAT WENT WRONG ALONG THE WAY
 The first deploy was refused because other projects in the shared account were using all the allowed server CPUs; it was retried once capacity freed up. The second attempt left the server without a build file because one file was missing from the upload list; that was fixed and redeployed. Also the first output file had extra blank padding after the region names; a new check caught it and it was fixed.
 
 COST AND STATE
-Estimated about 6 US cents per hour (about 1.50 dollars a day), from published prices, not from a bill. At the time of writing the stack was still running, waiting for the owner to say destroy it.
+It was checked live on 2026-10-20 (deployed by GitHub Actions, good run, bad-input run and fixed run all behaved as expected, 20 rows in and 18 rows out) and then taken down the same day to save money. The cost while it ran was about 6 US cents per hour, from published prices and not from a bill. After removal, direct checks found no servers, addresses, disks, network parts, buckets, roles or secrets left over. The shared GitHub login provider and the shared permission boundary were not touched.
+
+HOW TO BUILD IT AGAIN
+1. In infra/bootstrap run terraform init and terraform apply (recreates the state bucket and the GitHub login role; needs Terraform 1.10 or newer).
+2. Save your public IP as the GitHub variable ALLOWED_CIDR.
+3. Run: gh workflow run ci-deploy.yml --ref prod-hardening (after the pull request is merged into main). Always use the prod-hardening branch because the AWS role only trusts that branch. Until the merge, push any commit to prod-hardening instead.
+4. When the workflow is green, read the URL with terraform output airflow_url.
 
 NOT PROVEN
 Hop reading directly from S3 (the job downloads the file first, on purpose). Other server sizes. Long-term stability beyond a few hours. The page uses plain HTTP, limited to one IP address.

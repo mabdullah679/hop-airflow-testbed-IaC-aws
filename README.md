@@ -44,7 +44,7 @@ Not local/contained: an AWS account (346208529954 in this run) and a GitHub repo
 
 If your IP changes, update `ALLOWED_CIDR` and push again; port 8080 is unreachable from anywhere else (`allowed_cidr` rejects `0.0.0.0/0`, see `infra/variables.tf`).
 
-Tear down: `ALLOWED_CIDR=<your>/32 scripts/destroy.sh [--with-bootstrap]` (needs Terraform >= 1.10 and AWS credentials). It also deletes the two instance-created SSM secrets.
+Tear down (already done once, see below): `ALLOWED_CIDR=<your>/32 scripts/destroy.sh [--with-bootstrap]` (needs Terraform >= 1.10 and AWS credentials). It also deletes the two instance-created SSM secrets.
 
 ## What it does
 
@@ -118,6 +118,13 @@ Resources (all named `pf-hop-airflow-*`, tagged `project=portfolio`, `repo=hop-a
 
 Honest limits: the first deploy attempt failed twice for real reasons (EC2 vCPU quota exhausted by other workloads in the shared account; then `install_java.py` missing from the S3 bundle). Both were fixed and the green run above is the one that counts. `terraform apply` was run locally only for the bootstrap step. Hourly cost is an estimate from published rates (not an invoice): ~US$0.062/hr (t3.medium ~0.0528, 30 GB gp3 ~0.004, public IPv4 ~0.005), about US$1.5/day.
 
-Teardown and rebuild: the stack is meant to be destroyed after verification to save cost (`scripts/destroy.sh`, see above). To rebuild everything, re-run the Run-it steps (bootstrap only if the state bucket was also destroyed; otherwise push or re-run the workflow). At the time this README was written the stack was still running pending the owner's destroy instruction.
+Teardown: verified live on 2026-10-20 (deploy via GitHub Actions, DAG runs good/bad/fixed, 20 input rows -> 18 output rows), then torn down the same day to save cost. `scripts/destroy.sh --with-bootstrap` removed the main stack (15 resources) and the bootstrap (6 resources: state bucket, deploy role); direct lookups afterwards found no instances, Elastic IPs, volumes, VPC/subnets/IGW/route tables/SGs/ENIs, `pf-hop-airflow-*` buckets, roles, instance profiles, SSM parameters or log groups, and the old URL no longer responds. The shared OIDC provider and `portfolio-ci-boundary` policy were left untouched.
+
+Rebuild (everything, including the state bucket and deploy role; needs Terraform >= 1.10 and AWS credentials for the account):
+
+1. `cd infra/bootstrap && terraform init && terraform apply` (local apply, recreates the state bucket and OIDC deploy role).
+2. `gh variable set ALLOWED_CIDR --body "$(curl -s https://checkip.amazonaws.com)/32"`
+3. `gh workflow run ci-deploy.yml --ref prod-hardening` (works once this workflow is on `main`; the deploy role only trusts the `prod-hardening` branch, so always dispatch with `--ref prod-hardening`). Before the merge, or if dispatch is unavailable, push any commit to `prod-hardening` instead: `git commit --allow-empty -m rebuild && git push origin prod-hardening`.
+4. Read `terraform -chdir=infra output airflow_url` after the run goes green.
 
 Not established: Hop's native S3 VFS; behaviour on instance types other than t3.medium; multi-user Airflow auth; long-running stability (observed for well under a day).
