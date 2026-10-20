@@ -4,8 +4,7 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app", "dags"))
-from orders_checks import (InputValidationError, assert_output_matches,  # noqa: E402
-                           validate_orders_csv)
+from orders_checks import InputValidationError, assert_output_matches, validate_orders_csv
 
 SAMPLE = os.path.join(os.path.dirname(__file__), "..", "app", "data", "orders.csv")
 

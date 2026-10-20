@@ -7,7 +7,6 @@ import boto3
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
-
 from orders_checks import assert_output_matches, validate_orders_csv
 
 BUCKET = os.environ.get("PIPELINE_BUCKET", "")

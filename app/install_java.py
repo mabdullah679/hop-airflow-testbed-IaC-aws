@@ -9,5 +9,6 @@ HDR = {"User-Agent": "pf-hop-airflow-build"}  # python's default UA gets a 403
 pkg = json.load(urllib.request.urlopen(urllib.request.Request(url, headers=HDR)))[0]["binary"]["package"]
 data = urllib.request.urlopen(urllib.request.Request(pkg["link"], headers=HDR)).read()
 assert hashlib.sha256(data).hexdigest() == pkg["checksum"], "temurin checksum mismatch"
-open("/tmp/jre.tgz", "wb").write(data)
+with open("/tmp/jre.tgz", "wb") as fh:
+    fh.write(data)
 print("installed temurin jre", pkg["name"])

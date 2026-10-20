@@ -27,9 +27,7 @@ jobs:
       - name: Build app image (Airflow + Hop) and run DAG import test inside it
         run: |
           docker build -t pf-hop-airflow:ci app
-          docker run --rm -v "$PWD/tests:/t:ro" -v "$PWD/app/dags:/opt/airflow/dags:ro" \
-            -e PYTHONPATH=/opt/airflow/dags pf-hop-airflow:ci \
-            bash -c "pip install -q pytest && cd /tmp && pytest -q /t/test_dag_import.py -p no:cacheprovider"
+          bash scripts/dag_import_test.sh pf-hop-airflow:ci
       - name: Hop pipeline output assertion (real hop-run on sample data)
         run: bash scripts/hop_local_test.sh pf-hop-airflow:ci
   terraform:
