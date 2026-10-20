@@ -15,6 +15,7 @@ assert len(rows)==18, len(rows)
 r=[x for x in rows if x["order_id"]=="1001"][0]
 assert abs(float(r["line_total"])-50.0)<1e-6, r
 assert not any(float(x["unit_price"])<=0 for x in rows)
+assert all(x["region"]==x["region"].strip() for x in rows), "region has padding"
 print("hop output OK: rows=%d, 1001.line_total=%s" % (len(rows), r["line_total"]))
 PY
 '

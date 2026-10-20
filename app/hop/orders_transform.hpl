@@ -127,7 +127,7 @@
     </file>
     <fields>
       <field><name>order_id</name><type>Integer</type><format>#</format><length>15</length><precision>0</precision></field>
-      <field><name>region</name><type>String</type><format/><length>20</length><precision>-1</precision></field>
+      <field><name>region</name><type>String</type><format/><length>-1</length><precision>-1</precision></field>
       <field><name>unit_price</name><type>Number</type><format>0.00</format><decimal>.</decimal><group/><length>15</length><precision>2</precision></field>
       <field><name>quantity</name><type>Integer</type><format>#</format><length>15</length><precision>0</precision></field>
       <field><name>line_total</name><type>Number</type><format>0.00</format><decimal>.</decimal><group/><length>-1</length><precision>2</precision></field>
