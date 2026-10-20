@@ -22,7 +22,7 @@ def test_sample_counts():
 
 def test_bad_header_rejected(tmp_path):
     with pytest.raises(InputValidationError):
-        validate_orders_csv(w(tmp_path, "id,region\n1,x\n"))
+        validate_orders_csv(w(tmp_path, "id,region,price,qty\n1,apac,2.0,3\n"))
 
 
 def test_non_numeric_rejected(tmp_path):
