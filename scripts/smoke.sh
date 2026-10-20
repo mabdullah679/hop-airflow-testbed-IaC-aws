@@ -3,18 +3,7 @@
 # then checks the output object in S3. Never prints secrets. Usage: smoke.sh <instance-id> <bucket>
 set -euo pipefail
 IID="$1"; BUCKET="$2"; R=ap-southeast-2
-run_ssm() {  # script -> stdout (fails if the command fails)
-  local cid
-  cid=$(aws ssm send-command --region $R --instance-ids "$IID" --document-name AWS-RunShellScript \
-        --parameters "commands=[\"$1\"]" --query Command.CommandId --output text)
-  for _ in $(seq 1 60); do
-    st=$(aws ssm get-command-invocation --region $R --command-id "$cid" --instance-id "$IID" --query Status --output text 2>/dev/null || echo Pending)
-    case "$st" in Success) break;; Failed|Cancelled|TimedOut) echo "ssm command $st" >&2
-      aws ssm get-command-invocation --region $R --command-id "$cid" --instance-id "$IID" --query StandardErrorContent --output text | tail -20 >&2; return 1;; esac
-    sleep 5
-  done
-  aws ssm get-command-invocation --region $R --command-id "$cid" --instance-id "$IID" --query StandardOutputContent --output text
-}
+run_ssm() { "$(dirname "$0")/ssm_run.sh" "$IID" 120 "$1"; }
 echo "== waiting for webserver health"
 for _ in $(seq 1 60); do
   out=$(run_ssm "curl -s -o /dev/null -w %{http_code} http://localhost:8080/health" || true)

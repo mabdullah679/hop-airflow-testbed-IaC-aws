@@ -73,5 +73,7 @@ jobs:
             aws ssm describe-instance-information --filters Key=InstanceIds,Values=$IID --query 'InstanceInformationList[0].PingStatus' --output text | grep -q Online && break; sleep 10
           done
           echo "instance=$IID registered with SSM"
+      - name: Roll out app bundle on the instance (idempotent deploy.sh, waits for first-boot deploy)
+        run: bash scripts/ssm_run.sh "$(terraform -chdir=infra output -raw instance_id)" 1500 "aws s3 cp --only-show-errors s3://$(terraform -chdir=infra output -raw data_bucket)/app/deploy.sh /opt/pf/deploy.sh && chmod +x /opt/pf/deploy.sh && /opt/pf/deploy.sh 2>&1 | tail -5"
       - name: Smoke test
         run: bash scripts/smoke.sh "$(terraform -chdir=infra output -raw instance_id)" "$(terraform -chdir=infra output -raw data_bucket)"

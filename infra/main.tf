@@ -9,7 +9,7 @@ locals {
   boundary = "arn:aws:iam::${local.account}:policy/portfolio-ci-boundary"
   bucket   = "${var.name_prefix}-data-${local.account}"
   app_files = {
-    for f in setunion(toset(["Dockerfile", "docker-compose.yml", "deploy.sh"]), fileset("${path.module}/../app", "dags/*.py"), fileset("${path.module}/../app", "hop/**")) :
+    for f in setunion(toset(["Dockerfile", "docker-compose.yml", "deploy.sh"]), fileset("${path.module}/../app", "*.py"), fileset("${path.module}/../app", "dags/*.py"), fileset("${path.module}/../app", "hop/**")) :
     f => "${path.module}/../app/${f}"
   }
 }

@@ -2,6 +2,7 @@
 # Idempotent: sync app bundle from S3, ensure secrets exist in SSM, (re)build image, (re)start stack.
 # Secrets are generated on the host and stored in SSM; they are never echoed.
 set -euo pipefail
+exec 9>/var/lock/pf-deploy; flock 9   # serialise first-boot deploy and CI re-deploys
 source /opt/pf/env
 export AWS_DEFAULT_REGION=ap-southeast-2
 APP=/opt/pf/app
