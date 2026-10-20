@@ -1,0 +1,56 @@
+x-airflow: &airflow
+  image: pf-hop-airflow:local
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__PARALLELISM: "2"
+    AIRFLOW__WEBSERVER__WORKERS: "1"
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${PG_PASSWORD}@postgres/airflow
+    AWS_REGION: ap-southeast-2
+    AWS_DEFAULT_REGION: ap-southeast-2
+    HOP_CONFIG_FOLDER: /opt/airflow/hop/config
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - work:/opt/airflow/work
+  depends_on:
+    postgres: {condition: service_healthy}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: airflow
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 20
+  init:
+    <<: *airflow
+    restart: "no"
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        airflow db migrate
+        airflow users create --role Admin --username admin --email admin@example.com --firstname a --lastname b --password "$$AIRFLOW_ADMIN_PASSWORD" || airflow users reset-password -u admin -p "$$AIRFLOW_ADMIN_PASSWORD"
+  webserver:
+    <<: *airflow
+    command: webserver
+    ports: ["8080:8080"]
+    depends_on:
+      init: {condition: service_completed_successfully}
+  scheduler:
+    <<: *airflow
+    command: scheduler
+    depends_on:
+      init: {condition: service_completed_successfully}
+
+volumes:
+  pgdata:
+  work:

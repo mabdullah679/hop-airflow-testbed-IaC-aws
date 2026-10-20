@@ -1,0 +1,79 @@
+name: ci-deploy
+on:
+  pull_request:
+  push:
+    branches: [prod-hardening]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-southeast-2
+  TF_VERSION: 1.12.2
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install pytest ruff
+      - run: ruff check app tests
+      - name: Unit tests (pure logic)
+        run: pytest -q tests/test_checks.py
+      - name: Build app image (Airflow + Hop) and run DAG import test inside it
+        run: |
+          docker build -t pf-hop-airflow:ci app
+          bash scripts/dag_import_test.sh pf-hop-airflow:ci
+      - name: Hop pipeline output assertion (real hop-run on sample data)
+        run: bash scripts/hop_local_test.sh pf-hop-airflow:ci
+  terraform:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: "${{ env.TF_VERSION }}" }
+      - run: terraform fmt -check -recursive
+        working-directory: infra
+      - name: validate (no backend)
+        working-directory: infra
+        run: terraform init -backend=false -input=false && terraform validate
+  deploy:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    needs: terraform
+    concurrency: pf-hop-airflow-deploy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: "${{ env.TF_VERSION }}" }
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::346208529954:role/pf-hop-airflow-gha-deploy
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Guard account
+        run: test "$(aws sts get-caller-identity --query Account --output text)" = "346208529954"
+      - name: Plan
+        working-directory: infra
+        run: |
+          terraform init -input=false
+          terraform plan -input=false -out=tfplan -var "allowed_cidr=${{ vars.ALLOWED_CIDR }}"
+      - name: Apply
+        working-directory: infra
+        run: terraform apply -input=false -auto-approve tfplan
+      - name: Wait for the instance to register with SSM
+        working-directory: infra
+        run: |
+          IID=$(terraform output -raw instance_id)
+          for i in $(seq 1 40); do
+            aws ssm describe-instance-information --filters Key=InstanceIds,Values=$IID --query 'InstanceInformationList[0].PingStatus' --output text | grep -q Online && break; sleep 10
+          done
+          echo "instance=$IID registered with SSM"
+      - name: Roll out app bundle on the instance (idempotent deploy.sh, waits for first-boot deploy)
+        run: bash scripts/ssm_run.sh "$(terraform -chdir=infra output -raw instance_id)" 1500 "aws s3 cp --only-show-errors s3://$(terraform -chdir=infra output -raw data_bucket)/app/deploy.sh /opt/pf/deploy.sh && chmod +x /opt/pf/deploy.sh && /opt/pf/deploy.sh 2>&1 | tail -5"
+      - name: Smoke test
+        run: bash scripts/smoke.sh "$(terraform -chdir=infra output -raw instance_id)" "$(terraform -chdir=infra output -raw data_bucket)"
