@@ -65,11 +65,10 @@ jobs:
       - name: Apply
         working-directory: infra
         run: terraform apply -input=false -auto-approve tfplan
-      - name: Roll out app bundle to the running instance (idempotent)
+      - name: Wait for the instance to register with SSM
         working-directory: infra
         run: |
           IID=$(terraform output -raw instance_id)
-          aws ssm wait instance-information-available 2>/dev/null || true
           for i in $(seq 1 40); do
             aws ssm describe-instance-information --filters Key=InstanceIds,Values=$IID --query 'InstanceInformationList[0].PingStatus' --output text | grep -q Online && break; sleep 10
           done
