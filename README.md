@@ -71,7 +71,7 @@ Tear down (already done once, see below): `ALLOWED_CIDR=<your>/32 scripts/destro
 - `pytest tests/test_checks.py` - pure validation logic; no AWS or Docker needed.
 - `scripts/dag_import_test.sh [image]` - imports the DAG with real Airflow inside the app image and asserts task order.
 - `scripts/hop_local_test.sh [image]` - runs the real `hop-run` on `app/data/orders.csv` and asserts 18 rows, `1001.line_total = 50.00`, no padded strings.
-- CI runs all three plus `ruff`, `terraform fmt -check` and `terraform validate`; the deploy job ends with `scripts/smoke.sh` (triggers the DAG on the instance over SSM, expects SUCCESS and 18 rows in S3).
+- CI runs all three plus `ruff`, `terraform fmt -check`, `terraform validate` and a gitleaks secrets scan; the deploy job ends with `scripts/smoke.sh` (triggers the DAG on the instance over SSM, expects SUCCESS and 18 rows in S3).
 - No test needs live AWS except the smoke test.
 
 Mutation checks done this session (guard broken, test watched go red, exact edit reversed): output-row-count guard, header guard (this found the first header test was too weak, so it was rewritten), DAG task order, and the Hop filter threshold (`> 0` changed to `> -100` produced 20 rows and failed the hop test). The padding assertion was added, seen red against the unpadded-length bug, then fixed.
@@ -90,7 +90,8 @@ Mutation checks done this session (guard broken, test watched go red, exact edit
 | [`app/deploy.sh`](app/deploy.sh) | Idempotent on-instance deploy; creates secrets in SSM |
 | [`infra/`](infra/) | Terraform: VPC, SG, EC2, EIP, S3, IAM |
 | [`infra/bootstrap/`](infra/bootstrap/) | State bucket + GitHub OIDC deploy role (applied locally once) |
-| [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) | CI/CD |
+| [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) | CI/CD (actions pinned to commit SHAs; only the deploy job gets `id-token: write`) |
+| [`CLAUDE.md`](CLAUDE.md) | Repo-specific notes for AI coding sessions |
 | [`scripts/`](scripts/) | smoke, ssm_run, destroy, local test runners |
 | [`tests/`](tests/) | pytest suites |
 
