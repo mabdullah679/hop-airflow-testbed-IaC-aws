@@ -20,7 +20,7 @@ HOW TO RUN IT
 To remove everything: scripts/destroy.sh (add --with-bootstrap to also remove the state bucket).
 
 TESTS
-Unit tests for the checking code, a test that loads the job inside the real Airflow image, a test that runs the real Hop on the sample file and expects exactly 18 rows, plus code style and Terraform checks, plus the smoke test after deploy. To prove the tests are real, parts of the code were deliberately broken and the tests were seen to fail, then the code was restored. One test turned out to be too weak this way and was rewritten.
+Unit tests for the checking code, a test that loads the job inside the real Airflow image, a test that runs the real Hop on the sample file and expects exactly 18 rows, plus code style and Terraform checks, plus the smoke test after deploy. To prove the tests are real, parts of the code were deliberately broken and the tests were seen to fail, then the code was restored. One test turned out to be too weak this way and was rewritten. The pipeline also scans new commits for leaked keys or passwords.
 
 WHAT WAS PROVEN ON AWS (2026-10-20)
 The workflow run 39404934018 passed all three jobs and the smoke test. Logging in to the live page worked. A manual run succeeded: 20 rows in, 18 rows out, file present in S3. A run with a bad input file failed visibly at the first step. A run with the good input afterwards succeeded again with 18 rows.
